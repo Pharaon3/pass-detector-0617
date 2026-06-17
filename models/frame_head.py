@@ -8,10 +8,10 @@ import torch.nn as nn
 
 class FrameWiseHead(nn.Module):
     """
-    Per-frame binary pass probability head.
+    Per-frame binary pass logit head (sigmoid applied in model forward for inference).
 
     Input:  (B, T, d_model)
-    Output: (B, T, 1) probabilities in [0, 1]
+    Output: (B, T, 1) logits
     """
 
     def __init__(self, d_model: int = 512, dropout: float = 0.1) -> None:
@@ -24,5 +24,4 @@ class FrameWiseHead(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        logits = self.fc(x)  # (B, T, 1)
-        return torch.sigmoid(logits)
+        return self.fc(x)  # (B, T, 1)

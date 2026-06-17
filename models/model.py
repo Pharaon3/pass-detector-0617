@@ -17,7 +17,7 @@ class PassDetectionModel(nn.Module):
     End-to-end temporal pass event detector.
 
     Pipeline:
-      frames -> RegNetY -> GSM -> Transformer -> frame-wise sigmoid head
+      frames -> RegNetY -> GSM -> Transformer -> frame-wise logit head
     """
 
     def __init__(
@@ -52,31 +52,34 @@ class PassDetectionModel(nn.Module):
             x: (B, T, 3, H, W)
 
         Returns:
-            frame_probs: (B, T, 1)
-            features:    (B, T, d_model)
+            frame_logits: (B, T, 1)
+            frame_probs:  (B, T, 1)
+            features:     (B, T, d_model)
         """
         feats = self.backbone(x)
         feats = self.gsm(feats)
         temporal_feats = self.temporal(feats)
-        frame_probs = self.frame_head(temporal_feats)
+        frame_logits = self.frame_head(temporal_feats)
         return {
-            "frame_probs": frame_probs,
+            "frame_logits": frame_logits,
+            "frame_probs": torch.sigmoid(frame_logits),
             "features": temporal_feats,
         }
 
 
 def compute_loss(
-    frame_probs: torch.Tensor,
+    frame_logits: torch.Tensor,
     labels: torch.Tensor,
     peak_times_list: list[torch.Tensor],
     peak_loss_weight: float = 0.2,
 ) -> dict[str, torch.Tensor]:
     """
     Combined loss:
-      BCE(frame_probs, frame_labels) + weight * MSE(peak_time_pred, gt_peak_time)
+      BCEWithLogits(frame_logits, frame_labels) + weight * MSE(peak_time_pred, gt_peak_time)
     """
-    probs = frame_probs.squeeze(-1)  # (B, T)
-    bce = F.binary_cross_entropy(probs, labels, reduction="mean")
+    logits = frame_logits.squeeze(-1)  # (B, T)
+    bce = F.binary_cross_entropy_with_logits(logits, labels, reduction="mean")
+    probs = torch.sigmoid(logits)
 
     peak_mse_vals = []
     for i, gt_peaks in enumerate(peak_times_list):

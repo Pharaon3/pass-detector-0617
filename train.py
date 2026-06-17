@@ -148,7 +148,7 @@ def train_one_epoch(
         with autocast_context(use_amp, device):
             out = model(video)
             losses = compute_loss(
-                out["frame_probs"],
+                out["frame_logits"],
                 labels,
                 peak_times,
                 peak_loss_weight=peak_loss_weight,
