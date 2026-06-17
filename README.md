@@ -125,6 +125,28 @@ python evaluate.py --checkpoint checkpoints/best.pt
 
 Reports frame-level AUC/F1 and event-level precision/recall + temporal error.
 
+## Visualize pass probability curve
+
+Plot predicted probability vs time with ground-truth pass frames marked:
+
+```bash
+python plot_probs.py --clip clip_4 --checkpoint checkpoints/best.pt
+```
+
+Saved to `outputs/plots/clip_4_pass_probs.png`.
+
+Use an existing inference JSON instead of re-running the model:
+
+```bash
+python plot_probs.py --clip clip_4 --probs-json outputs/clip_4_frame_probs.json
+```
+
+Show interactively (requires display):
+
+```bash
+python plot_probs.py --clip clip_4 --show
+```
+
 ## Model Architecture
 
 1. **Backbone**: `timm` RegNetY (`regnety_064` → 2016-d features per frame)
