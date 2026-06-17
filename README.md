@@ -195,6 +195,18 @@ python infer.py --checkpoint checkpoints/best.pt \
   --video data/test_videos/clip_4_from1s_black1s.mp4
 ```
 
+## Find duplicate / overlapping segments
+
+Search which clips share the same footage as part of another clip:
+
+```bash
+python find_matching_segment.py --query-clip clip_235 --start-sec 20 --end-sec 30
+```
+
+```bash
+python find_matching_segment.py --query-clip clip_235 --start-sec 20 --end-sec 30 --min-score 0.85 --exclude-self
+```
+
 ## Model Architecture
 
 1. **Backbone**: `timm` RegNetY (`regnety_064` → 2016-d features per frame)
