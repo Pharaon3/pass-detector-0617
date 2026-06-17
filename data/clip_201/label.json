@@ -1,0 +1,78 @@
+{
+  "observation": [
+    {
+      "label": "PASS",
+      "position": "5240",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "7040",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "9360",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "11440",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "12360",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "19440",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "22480",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "26400",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "29920",
+      "team": "home",
+      "visibility": "visible"
+    }
+  ],
+  "anticipation": [
+    {
+      "label": "DRIVE",
+      "position": "30760",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "SHOT",
+      "position": "33440",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "BALL PLAYER BLOCK",
+      "position": "34000",
+      "team": "away",
+      "visibility": "visible"
+    }
+  ]
+}

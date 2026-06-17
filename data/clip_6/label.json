@@ -1,0 +1,48 @@
+{
+  "observation": [
+    {
+      "label": "PASS",
+      "position": "15320",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "21480",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "26720",
+      "team": "away",
+      "visibility": "visible"
+    }
+  ],
+  "anticipation": [
+    {
+      "label": "PASS",
+      "position": "31320",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "DRIVE",
+      "position": "32640",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "33920",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "DRIVE",
+      "position": "34760",
+      "team": "away",
+      "visibility": "visible"
+    }
+  ]
+}

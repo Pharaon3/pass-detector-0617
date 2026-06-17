@@ -1,0 +1,72 @@
+{
+  "observation": [
+    {
+      "label": "PASS",
+      "position": "1400",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "4920",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "16680",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "20720",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "22880",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "24640",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "26800",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "29840",
+      "team": "home",
+      "visibility": "visible"
+    }
+  ],
+  "anticipation": [
+    {
+      "label": "DRIVE",
+      "position": "31440",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PLAYER SUCCESSFUL TACKLE",
+      "position": "32760",
+      "team": "away",
+      "visibility": "visible"
+    },
+    {
+      "label": "OUT",
+      "position": "34800",
+      "team": "home",
+      "visibility": "visible"
+    }
+  ]
+}

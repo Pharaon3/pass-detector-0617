@@ -1,0 +1,66 @@
+# Soccer Pass Event Detection Configuration
+
+data:
+  data_root: "data"
+  video_filename: "224p.mp4"
+  label_filename: "label.json"
+  clip_prefix: "clip_"
+  fps: 25
+  clip_duration_sec: 30
+  num_frames: 750  # 25 * 30; overridden per-clip from video when available
+
+sliding_window:
+  window_sec: 7
+  window_frames: 175  # 7 * 25
+  stride_sec: 1
+  stride_frames: 25
+
+preprocessing:
+  frame_size: 224
+  mean: [0.485, 0.456, 0.406]
+  std: [0.229, 0.224, 0.225]
+  use_optical_flow: false
+
+labeling:
+  pass_radius_sec: 0.5  # ±0.5s Gaussian smoothing around event center
+  position_unit: "ms"   # annotation position field unit
+
+model:
+  # GPU defaults (3090/4090): regnety_032 (1296-d) or regnety_064 (2016-d)
+  backbone: "regnety_032"
+  backbone_dim: 1296
+  backbone_chunk_size: 32  # GPU: process 32 frames per backbone mini-batch
+  d_model: 512
+  n_heads: 8
+  n_layers: 6
+  dropout: 0.1
+
+training:
+  batch_size: 4          # 4 x 175 frames; increase to 8 if VRAM allows
+  num_epochs: 30
+  lr: 1.0e-4
+  weight_decay: 1.0e-4
+  peak_loss_weight: 0.2
+  grad_accum_steps: 2    # effective batch = 4 * 2 = 8
+  amp: true
+  num_workers: 4
+  checkpoint_dir: "checkpoints"
+  log_interval: 10
+  # Fallback when CUDA is unavailable (ignored when GPU works)
+  cpu_batch_size: 1
+  cpu_grad_accum_steps: 8
+  cpu_num_workers: 0
+  cpu_backbone: "regnety_008"
+  cpu_backbone_chunk_size: 8
+  cpu_transformer_layers: 4
+
+inference:
+  batch_size: 2
+  cpu_batch_size: 1
+  threshold: 0.5
+  min_segment_frames: 3
+  nms_window_sec: 1.0
+  output_dir: "outputs"
+
+metrics:
+  frame_threshold: 0.5
