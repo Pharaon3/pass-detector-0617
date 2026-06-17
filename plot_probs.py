@@ -1,4 +1,4 @@
-"""Plot frame-level pass probability vs ground-truth pass frames for one clip."""
+"""Plot frame-level pass probability vs ground-truth pass frames."""
 
 from __future__ import annotations
 
@@ -6,11 +6,16 @@ import argparse
 import json
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 from infer import infer_video, load_model
 from utils import (
+    ClipRecord,
     build_frame_labels,
     ensure_dir,
     frame_to_sec,
@@ -22,19 +27,32 @@ from utils import (
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Plot pass probability curve for one clip")
+    p = argparse.ArgumentParser(description="Plot pass probability curve for one or all clips")
     p.add_argument("--config", type=str, default="config.yaml")
     p.add_argument("--checkpoint", type=str, default="checkpoints/best.pt")
-    p.add_argument("--clip", type=str, required=True, help="Clip id, e.g. clip_4")
+    p.add_argument("--clip", type=str, default=None, help="Single clip id, e.g. clip_4")
+    p.add_argument("--all", action="store_true", help="Plot every clip under data/")
     p.add_argument(
         "--probs-json",
         type=str,
         default=None,
-        help="Use existing outputs/{clip}_frame_probs.json instead of running inference",
+        help="Use this JSON for a single --clip run",
     )
-    p.add_argument("--output", type=str, default=None, help="Save path for PNG")
-    p.add_argument("--show", action="store_true", help="Display plot window")
-    p.add_argument("--threshold", type=float, default=0.5, help="Detection threshold line")
+    p.add_argument(
+        "--probs-dir",
+        type=str,
+        default="outputs",
+        help="Directory with {clip_id}_frame_probs.json files (used with --all)",
+    )
+    p.add_argument(
+        "--infer-missing",
+        action="store_true",
+        help="With --all: run inference for clips missing probs JSON",
+    )
+    p.add_argument("--output-dir", type=str, default="outputs/plots", help="Where to save PNGs")
+    p.add_argument("--output", type=str, default=None, help="Save path for single --clip PNG")
+    p.add_argument("--show", action="store_true", help="Display plot window (single clip only)")
+    p.add_argument("--threshold", type=float, default=None, help="Detection threshold line")
     return p.parse_args()
 
 
@@ -109,11 +127,75 @@ def plot_clip(
     return output_path
 
 
+def probs_json_path(probs_dir: Path, clip_id: str) -> Path:
+    return probs_dir / f"{clip_id}_frame_probs.json"
+
+
+def resolve_frame_probs(
+    clip: ClipRecord,
+    cfg: dict,
+    probs_dir: Path,
+    probs_json: Path | None,
+    model,
+    device,
+    infer_missing: bool,
+) -> np.ndarray | None:
+    if probs_json is not None:
+        return load_probs_from_json(probs_json)
+
+    cached = probs_json_path(probs_dir, clip.clip_id)
+    if cached.exists():
+        return load_probs_from_json(cached)
+
+    if not infer_missing or model is None:
+        return None
+
+    result = infer_video(
+        model,
+        clip.video_path,
+        cfg,
+        device,
+        video_id=clip.clip_id,
+        num_frames=clip.num_frames,
+    )
+    return np.asarray(result["frame_probs"], dtype=np.float32)
+
+
+def plot_one_clip(
+    clip: ClipRecord,
+    cfg: dict,
+    frame_probs: np.ndarray,
+    output_dir: Path,
+    threshold: float,
+    output_path: Path | None = None,
+    show: bool = False,
+) -> Path:
+    fps = cfg["data"]["fps"]
+    pass_frames = pass_frames_from_annotation(clip.label_path, fps, clip.num_frames)
+    if output_path is None:
+        output_path = output_dir / f"{clip.clip_id}_pass_probs.png"
+    return plot_clip(
+        clip_id=clip.clip_id,
+        frame_probs=frame_probs,
+        pass_frames=pass_frames,
+        fps=fps,
+        pass_radius_sec=cfg["labeling"]["pass_radius_sec"],
+        threshold=threshold,
+        output_path=output_path,
+        show=show,
+    )
+
+
 def main() -> None:
     args = parse_args()
+    if not args.all and not args.clip:
+        raise SystemExit("Specify --clip clip_4 or --all")
+
     cfg = load_config(args.config)
     data_cfg = cfg["data"]
-    fps = data_cfg["fps"]
+    threshold = args.threshold if args.threshold is not None else cfg["inference"]["threshold"]
+    probs_dir = Path(args.probs_dir)
+    output_dir = ensure_dir(args.output_dir)
 
     clips = list_clips(
         data_cfg["data_root"],
@@ -121,38 +203,64 @@ def main() -> None:
         label_filename=data_cfg["label_filename"],
         clip_prefix=data_cfg["clip_prefix"],
     )
+    if not clips:
+        raise RuntimeError("No clips found under data/")
+
+    if args.all:
+        need_infer = args.infer_missing or any(
+            not probs_json_path(probs_dir, c.clip_id).exists() for c in clips
+        )
+        model = device = None
+        if need_infer:
+            device = get_device()
+            model = load_model(Path(args.checkpoint), device)
+
+        skipped = []
+        for clip in tqdm(clips, desc="Plot clips"):
+            frame_probs = resolve_frame_probs(
+                clip, cfg, probs_dir, None, model, device, infer_missing=args.infer_missing
+            )
+            if frame_probs is None:
+                skipped.append(clip.clip_id)
+                continue
+            plot_one_clip(clip, cfg, frame_probs, output_dir, threshold)
+
+        print(f"Saved {len(clips) - len(skipped)} plots to {output_dir}")
+        if skipped:
+            print(f"Skipped {len(skipped)} clips (no probs JSON): {skipped[:5]}{'...' if len(skipped) > 5 else ''}")
+            print("Run:  python infer.py --checkpoint checkpoints/best.pt")
+            print("Then: python plot_probs.py --all")
+        return
+
     clip = next((c for c in clips if c.clip_id == args.clip), None)
     if clip is None:
-        raise RuntimeError(f"Clip not found: {args.clip}. Available: {[c.clip_id for c in clips[:5]]}...")
+        raise RuntimeError(f"Clip not found: {args.clip}")
 
-    pass_frames = pass_frames_from_annotation(clip.label_path, fps, clip.num_frames)
+    pass_frames = pass_frames_from_annotation(clip.label_path, data_cfg["fps"], clip.num_frames)
     print(f"{clip.clip_id}: {len(pass_frames)} GT pass frames at {pass_frames}")
 
-    if args.probs_json:
-        frame_probs = load_probs_from_json(Path(args.probs_json))
-    else:
+    probs_json = Path(args.probs_json) if args.probs_json else None
+    if probs_json is None and probs_json_path(probs_dir, clip.clip_id).exists():
+        probs_json = probs_json_path(probs_dir, clip.clip_id)
+
+    model = device = None
+    if probs_json is None or not probs_json.exists():
         device = get_device()
         model = load_model(Path(args.checkpoint), device)
-        result = infer_video(
-            model,
-            clip.video_path,
-            cfg,
-            device,
-            video_id=clip.clip_id,
-            num_frames=clip.num_frames,
-        )
-        frame_probs = np.asarray(result["frame_probs"], dtype=np.float32)
+
+    frame_probs = resolve_frame_probs(
+        clip, cfg, probs_dir, probs_json, model, device, infer_missing=True
+    )
+    if frame_probs is None:
+        raise RuntimeError(f"Could not load probabilities for {clip.clip_id}")
 
     output = Path(args.output) if args.output else None
-    threshold = args.threshold if args.threshold is not None else cfg["inference"]["threshold"]
-
-    plot_clip(
-        clip_id=clip.clip_id,
-        frame_probs=frame_probs,
-        pass_frames=pass_frames,
-        fps=fps,
-        pass_radius_sec=cfg["labeling"]["pass_radius_sec"],
-        threshold=threshold,
+    plot_one_clip(
+        clip,
+        cfg,
+        frame_probs,
+        output_dir,
+        threshold,
         output_path=output,
         show=args.show,
     )

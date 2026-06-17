@@ -1,4 +1,2 @@
 venv/
 __pycache__/
-checkpoints/
-dataset/__pycache__/

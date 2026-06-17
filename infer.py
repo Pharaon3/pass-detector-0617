@@ -187,7 +187,7 @@ def main() -> None:
     if not clips:
         raise RuntimeError("No videos found for inference.")
 
-    for clip in clips:
+    for clip in tqdm(clips, desc="Infer clips"):
         result = infer_video(
             model,
             clip.video_path,

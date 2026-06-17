@@ -135,7 +135,35 @@ python plot_probs.py --clip clip_4 --checkpoint checkpoints/best.pt
 
 Saved to `outputs/plots/clip_4_pass_probs.png`.
 
-Use an existing inference JSON instead of re-running the model:
+### Bulk infer + plot all clips in `data/`
+
+**One command:**
+
+```bash
+bash bulk_infer_plot.sh checkpoints/best.pt
+```
+
+**Or step by step:**
+
+```bash
+# 1) Infer all clips (default: every data/clip_XXX/)
+python infer.py --checkpoint checkpoints/best.pt
+
+# 2) Plot all clips from saved JSONs
+python plot_probs.py --all
+```
+
+Outputs:
+- `outputs/clip_XXX_frame_probs.json` — 750 frame probabilities per clip
+- `outputs/plots/clip_XXX_pass_probs.png` — probability curve with GT pass frames
+
+Plot only (skip inference if JSONs already exist):
+
+```bash
+python plot_probs.py --all --probs-dir outputs
+```
+
+Use an existing inference JSON for one clip:
 
 ```bash
 python plot_probs.py --clip clip_4 --probs-json outputs/clip_4_frame_probs.json
@@ -145,6 +173,17 @@ Show interactively (requires display):
 
 ```bash
 python plot_probs.py --clip clip_4 --show
+```
+
+## Create a custom test video
+
+Build a 30s clip from clip_4 starting at 1s, with 1s black at the end (keeps original 398×224 and SAR):
+
+```bash
+bash make_test_video.sh
+
+python infer.py --checkpoint checkpoints/best.pt \
+  --video data/test_videos/clip_4_from1s_black1s.mp4
 ```
 
 ## Model Architecture
