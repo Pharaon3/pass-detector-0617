@@ -5,11 +5,11 @@ set -euo pipefail
 CHECKPOINT="${1:-checkpoints/best.pt}"
 
 echo "=== Step 1/2: Inference on all clips in data/ ==="
-python infer.py --checkpoint "$CHECKPOINT"
+python infer.py --checkpoint "$CHECKPOINT" --skip-existing
 
 echo ""
 echo "=== Step 2/2: Plot all clips ==="
-python plot_probs.py --all --probs-dir outputs --output-dir outputs/plots
+python plot_probs.py --all --probs-dir outputs --output-dir outputs/plots --skip-existing
 
 echo ""
 echo "Done."

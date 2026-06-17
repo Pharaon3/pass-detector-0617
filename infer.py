@@ -34,6 +34,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--checkpoint", type=str, default="checkpoints/best.pt")
     p.add_argument("--video", type=str, default=None, help="Single video path")
     p.add_argument("--video-dir", type=str, default=None, help="Directory of test videos")
+    p.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip clips whose outputs/{clip_id}_frame_probs.json already exists",
+    )
     return p.parse_args()
 
 
@@ -187,7 +192,13 @@ def main() -> None:
     if not clips:
         raise RuntimeError("No videos found for inference.")
 
+    skipped = 0
     for clip in tqdm(clips, desc="Infer clips"):
+        out_probs = output_dir / f"{clip.clip_id}_frame_probs.json"
+        if args.skip_existing and out_probs.exists():
+            skipped += 1
+            continue
+
         result = infer_video(
             model,
             clip.video_path,
@@ -197,7 +208,6 @@ def main() -> None:
             num_frames=clip.num_frames,
         )
 
-        out_probs = output_dir / f"{result['video_id']}_frame_probs.json"
         save_json({"frame_probs": result["frame_probs"]}, out_probs)
 
         out_events = output_dir / f"{result['video_id']}_events.json"
@@ -206,6 +216,8 @@ def main() -> None:
         print(f"{result['video_id']}: saved {len(result['frame_probs'])} frame probs, "
               f"{len(result['events'])} events")
 
+    if skipped:
+        print(f"Skipped {skipped} clips (already inferred). Use without --skip-existing to re-run.")
     print(f"Outputs written to {output_dir}")
 
 

@@ -143,6 +143,15 @@ Saved to `outputs/plots/clip_4_pass_probs.png`.
 bash bulk_infer_plot.sh checkpoints/best.pt
 ```
 
+Skips clips already inferred/plotted (`--skip-existing`). Only **new** clips in `data/` are processed.
+
+Re-run everything from scratch:
+
+```bash
+python infer.py --checkpoint checkpoints/best.pt
+python plot_probs.py --all
+```
+
 **Or step by step:**
 
 ```bash

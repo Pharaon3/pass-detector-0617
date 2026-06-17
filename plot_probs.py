@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output", type=str, default=None, help="Save path for single --clip PNG")
     p.add_argument("--show", action="store_true", help="Display plot window (single clip only)")
     p.add_argument("--threshold", type=float, default=None, help="Detection threshold line")
+    p.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip clips whose plot PNG is newer than the probs JSON",
+    )
     return p.parse_args()
 
 
@@ -216,7 +221,15 @@ def main() -> None:
             model = load_model(Path(args.checkpoint), device)
 
         skipped = []
+        plotted = 0
         for clip in tqdm(clips, desc="Plot clips"):
+            out_png = output_dir / f"{clip.clip_id}_pass_probs.png"
+            probs_path = probs_json_path(probs_dir, clip.clip_id)
+            if args.skip_existing and out_png.exists() and probs_path.exists():
+                if out_png.stat().st_mtime >= probs_path.stat().st_mtime:
+                    skipped.append(clip.clip_id)
+                    continue
+
             frame_probs = resolve_frame_probs(
                 clip, cfg, probs_dir, None, model, device, infer_missing=args.infer_missing
             )
@@ -224,12 +237,11 @@ def main() -> None:
                 skipped.append(clip.clip_id)
                 continue
             plot_one_clip(clip, cfg, frame_probs, output_dir, threshold)
+            plotted += 1
 
-        print(f"Saved {len(clips) - len(skipped)} plots to {output_dir}")
+        print(f"Saved {plotted} plots to {output_dir}")
         if skipped:
-            print(f"Skipped {len(skipped)} clips (no probs JSON): {skipped[:5]}{'...' if len(skipped) > 5 else ''}")
-            print("Run:  python infer.py --checkpoint checkpoints/best.pt")
-            print("Then: python plot_probs.py --all")
+            print(f"Skipped {len(skipped)} clips")
         return
 
     clip = next((c for c in clips if c.clip_id == args.clip), None)
