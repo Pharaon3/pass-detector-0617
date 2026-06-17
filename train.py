@@ -115,9 +115,10 @@ def evaluate_frame_auc(model: PassDetectionModel, loader: DataLoader, device: to
 
     y_prob = np.concatenate(all_probs)
     y_true = np.concatenate(all_labels)
-    if len(np.unique(y_true)) < 2:
+    y_bin = (y_true >= 0.5).astype(np.int32)
+    if len(np.unique(y_bin)) < 2:
         return 0.0
-    return float(roc_auc_score(y_true, y_prob))
+    return float(roc_auc_score(y_bin, y_prob))
 
 
 def train_one_epoch(
