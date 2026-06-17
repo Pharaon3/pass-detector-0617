@@ -1,0 +1,23 @@
+{
+  "observation": [
+    {
+      "label": "PASS",
+      "position": "4800",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "8520",
+      "team": "home",
+      "visibility": "visible"
+    },
+    {
+      "label": "PASS",
+      "position": "10080",
+      "team": "away",
+      "visibility": "visible"
+    }
+  ],
+  "anticipation": []
+}
