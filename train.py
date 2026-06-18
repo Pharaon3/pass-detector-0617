@@ -10,9 +10,10 @@ from pathlib import Path
 import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Dataset, random_split
 from tqdm import tqdm
 
+from dataset.augmentation import AugmentedPassDataset, build_augment_specs
 from dataset.dataset import SoccerPassDataset, collate_fn
 from models.model import PassDetectionModel, compute_loss
 from utils import AverageMeter, ensure_dir, get_device, load_config, print_device_info, set_seed
@@ -28,6 +29,11 @@ def parse_args() -> argparse.Namespace:
         "--require-gpu",
         action="store_true",
         help="Exit with error if CUDA is not available (recommended)",
+    )
+    p.add_argument(
+        "--no-augment",
+        action="store_true",
+        help="Disable training augmentations (baseline)",
     )
     return p.parse_args()
 
@@ -197,6 +203,7 @@ def main() -> None:
     sw_cfg = cfg["sliding_window"]
     prep_cfg = cfg["preprocessing"]
     label_cfg = cfg["labeling"]
+    aug_cfg = cfg.get("augmentation", {})
 
     dataset = SoccerPassDataset(
         data_root=data_cfg["data_root"],
@@ -220,11 +227,30 @@ def main() -> None:
 
     val_size = max(1, int(len(dataset) * args.val_ratio))
     train_size = len(dataset) - val_size
-    train_ds, val_ds = random_split(
+    split_gen = torch.Generator().manual_seed(args.seed)
+    train_subset, val_subset = random_split(
         dataset,
         [train_size, val_size],
-        generator=torch.Generator().manual_seed(args.seed),
+        generator=split_gen,
     )
+
+    use_augment = aug_cfg.get("enabled", False) and not args.no_augment
+    if use_augment:
+        augment_specs = build_augment_specs(aug_cfg)
+        train_ds: Dataset = AugmentedPassDataset(
+            dataset,
+            list(train_subset.indices),
+            augment_specs,
+        )
+        print(
+            f"Augmentation ON: {len(augment_specs)} variants "
+            f"({len(augment_specs)}× windows → {len(train_ds)} train samples)"
+        )
+    else:
+        train_ds = train_subset
+        print("Augmentation OFF")
+
+    val_ds = val_subset
 
     use_cuda = device.type == "cuda"
     train_loader = DataLoader(

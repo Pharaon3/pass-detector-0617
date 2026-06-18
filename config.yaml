@@ -25,6 +25,14 @@ labeling:
   pass_radius_sec: 0.5  # ±0.5s Gaussian smoothing around event center
   position_unit: "ms"   # annotation position field unit
 
+augmentation:
+  enabled: true
+  # Train set size multiplier = len(rotation) × len(grayscale) × len(zoom) × len(hue_deg)
+  rotation_deg: [0, -5, 5]       # 3
+  grayscale: [false, true]       # 2
+  zoom: [1.0, 1.1]               # 2
+  hue_deg: [0, 15, -15]          # 3  → 3×2×2×3 = 36 variants per window
+
 model:
   # GPU defaults (3090/4090): regnety_032 (1296-d) or regnety_064 (2016-d)
   backbone: "regnety_032"

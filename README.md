@@ -91,13 +91,39 @@ Increase `batch_size` to 8 on 24GB cards (3090/4090). Use `regnety_064` if you h
 
 ## Training
 
+Train with **on-the-fly augmentations** (grayscale, ±5° rotate, hue shift, 1.1× zoom):
+
 ```bash
 python train.py --require-gpu
 ```
 
-On **CPU** (when CUDA unavailable and `--require-gpu` not set), training auto-switches to low-memory CPU settings.
+Augmentation grid (in `config.yaml`): **3 × 2 × 2 × 3 = 36** variants per window  
+→ train set ≈ **36× larger** (validation stays un-augmented).
 
-If you still hit OOM on GPU, lower `batch_size` to 2 or `backbone_chunk_size` to 16 in `config.yaml`.
+Disable augmentations (baseline):
+
+```bash
+python train.py --require-gpu --no-augment
+```
+
+Customize grid in `config.yaml`:
+
+```yaml
+augmentation:
+  enabled: true
+  rotation_deg: [0, -5, 5]    # 3
+  grayscale: [false, true]    # 2
+  zoom: [1.0, 1.1]            # 2
+  hue_deg: [0, 15, -15]       # 3 → total 36×
+```
+
+Then re-infer / evaluate:
+
+```bash
+bash bulk_grayscale_infer_plot.sh checkpoints/best.pt
+bash bulk_rotated_infer_plot.sh checkpoints/best.pt
+python evaluate.py --checkpoint checkpoints/best.pt
+```
 
 ## Inference
 

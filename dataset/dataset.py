@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+from dataset.augmentation import AugmentSpec, apply_augmentation
 from dataset.sliding_window import WindowSpec, generate_sliding_windows
 from utils import (
     ClipRecord,
@@ -145,7 +146,7 @@ class SoccerPassDataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> dict[str, Any]:
+    def get_item(self, idx: int, augment_spec: AugmentSpec | None = None) -> dict[str, Any]:
         clip, window, window_labels, pass_frames = self.samples[idx]
 
         frames = read_video_frames(
@@ -154,6 +155,9 @@ class SoccerPassDataset(Dataset):
             num_frames=window.length,
             target_size=self.frame_size,
         )
+        if augment_spec is not None:
+            frames = apply_augmentation(frames, augment_spec)
+
         video = normalize_frames(frames, self.mean, self.std)
 
         if self.transform is not None:
@@ -161,7 +165,6 @@ class SoccerPassDataset(Dataset):
 
         labels = torch.from_numpy(window_labels).float()
 
-        # Peak time targets for auxiliary MSE loss (normalized 0-1 within window)
         peak_times = []
         for pf in pass_frames:
             if window.start_frame <= pf < window.end_frame:
@@ -174,12 +177,15 @@ class SoccerPassDataset(Dataset):
             peak_time_tensor = torch.zeros(0, dtype=torch.float32)
 
         return {
-            "video": video,  # (T, 3, H, W)
-            "labels": labels,  # (T,)
+            "video": video,
+            "labels": labels,
             "peak_times": peak_time_tensor,
             "start_frame": window.start_frame,
             "video_id": clip.clip_id,
         }
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        return self.get_item(idx, augment_spec=None)
 
 
 def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
