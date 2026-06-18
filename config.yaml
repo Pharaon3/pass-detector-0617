@@ -27,11 +27,11 @@ labeling:
 
 augmentation:
   enabled: true
-  # Train set size multiplier = len(rotation) × len(grayscale) × len(zoom) × len(hue_deg)
+  # Train multiplier = len(rotation) × len(zoom) × (len(hue_deg) + 1)
+  # hue applies to color only; grayscale adds one variant per (rotation, zoom) with no hue shift
   rotation_deg: [0, -5, 5]       # 3
-  grayscale: [false, true]       # 2
-  zoom: [1.0, 1.1]               # 2
-  hue_deg: [0, 15, -15]          # 3  → 3×2×2×3 = 36 variants per window
+  zoom: [1.0, 1.1]                # 2
+  hue_deg: [0, 15, -15]           # 3 color hues + 1 gray → 3×2×4 = 24 variants
 
 model:
   # GPU defaults (3090/4090): regnety_032 (1296-d) or regnety_064 (2016-d)

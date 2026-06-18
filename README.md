@@ -97,8 +97,10 @@ Train with **on-the-fly augmentations** (grayscale, ±5° rotate, hue shift, 1.1
 python train.py --require-gpu
 ```
 
-Augmentation grid (in `config.yaml`): **3 × 2 × 2 × 3 = 36** variants per window  
-→ train set ≈ **36× larger** (validation stays un-augmented).
+Augmentation grid (in `config.yaml`): **3 × 2 × (3 + 1) = 24** variants per window  
+(color gets hue shifts; grayscale skips hue) → train set ≈ **24× larger**.
+
+**Training runs for 30 epochs** by default (`training.num_epochs` in `config.yaml`).
 
 Disable augmentations (baseline):
 
@@ -112,9 +114,8 @@ Customize grid in `config.yaml`:
 augmentation:
   enabled: true
   rotation_deg: [0, -5, 5]    # 3
-  grayscale: [false, true]    # 2
   zoom: [1.0, 1.1]            # 2
-  hue_deg: [0, 15, -15]       # 3 → total 36×
+  hue_deg: [0, 15, -15]       # 3 color + 1 gray each → 24× total
 ```
 
 Then re-infer / evaluate:

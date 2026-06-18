@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import itertools
 import math
 from dataclasses import dataclass
 
 import cv2
 import numpy as np
-import torch
 from torch.utils.data import Dataset
 
 
@@ -34,28 +32,53 @@ class AugmentSpec:
 
 def build_augment_specs(cfg: dict) -> list[AugmentSpec]:
     """
-    Cartesian product of augmentation options.
+    Build augmentation grid.
 
-    Default grid size: 3 × 2 × 2 × hue_count
-      rotation_deg  (3): 0, -5, +5
-      grayscale     (2): color, gray
-      zoom          (2): 1.0, 1.1
-      hue_deg       (N): e.g. [0, 15, -15]
+    For each (rotation, zoom):
+      - color: grayscale=False, hue in hue_deg list
+      - gray:  grayscale=True,  hue=0 only (no hue shift on gray)
+
+    Total variants = len(rotation) × len(zoom) × (len(hue_deg) + 1)
+
+    Default: 3 × 2 × (3 + 1) = 24
+      rotation_deg (3): 0, -5, +5
+      zoom         (2): 1.0, 1.1
+      hue_deg      (3): 0, 15, -15  (color only)
+      + 1 grayscale variant per (rotation, zoom)
     """
     rotations = cfg.get("rotation_deg", [0, -5, 5])
-    grays = cfg.get("grayscale", [False, True])
     zooms = cfg.get("zoom", [1.0, 1.1])
     hues = cfg.get("hue_deg", [0, 15, -15])
 
-    specs = [
-        AugmentSpec(
-            rotation_deg=float(r),
-            grayscale=bool(g),
-            zoom=float(z),
-            hue_deg=float(h),
-        )
-        for r, g, z, h in itertools.product(rotations, grays, zooms, hues)
-    ]
+    specs: list[AugmentSpec] = []
+    seen: set[tuple] = set()
+
+    for r in rotations:
+        for z in zooms:
+            for h in hues:
+                key = (float(r), False, float(z), float(h))
+                if key not in seen:
+                    seen.add(key)
+                    specs.append(
+                        AugmentSpec(
+                            rotation_deg=float(r),
+                            grayscale=False,
+                            zoom=float(z),
+                            hue_deg=float(h),
+                        )
+                    )
+            key = (float(r), True, float(z), 0.0)
+            if key not in seen:
+                seen.add(key)
+                specs.append(
+                    AugmentSpec(
+                        rotation_deg=float(r),
+                        grayscale=True,
+                        zoom=float(z),
+                        hue_deg=0.0,
+                    )
+                )
+
     return specs
 
 
@@ -127,7 +150,8 @@ def apply_augmentation(frames: np.ndarray, spec: AugmentSpec) -> np.ndarray:
         img = rotate_zoom_crop_rgb(img, spec.rotation_deg)
         if spec.grayscale:
             img = to_grayscale_rgb(img)
-        img = hue_shift_rgb(img, spec.hue_deg)
+        elif spec.hue_deg != 0:
+            img = hue_shift_rgb(img, spec.hue_deg)
         out.append(img)
     return np.stack(out, axis=0)
 
