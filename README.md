@@ -227,6 +227,30 @@ python plot_probs.py --all --data-root data_grayscale \
   --probs-dir outputs_grayscale --output-dir outputs_grayscale/plots
 ```
 
+## Rotated ±5° inference experiment
+
+Rotate left/right, keep original resolution, infer and plot:
+
+```bash
+bash bulk_rotated_infer_plot.sh checkpoints/best.pt
+```
+
+Or step by step:
+
+```bash
+bash make_rotated_clips.sh data data_rotated_left data_rotated_right 5
+
+python infer.py --checkpoint checkpoints/best.pt \
+  --video-dir data_rotated_left --output-dir outputs_rotated_left --skip-existing
+python plot_probs.py --all --data-root data_rotated_left \
+  --probs-dir outputs_rotated_left --output-dir outputs_rotated_left/plots
+
+python infer.py --checkpoint checkpoints/best.pt \
+  --video-dir data_rotated_right --output-dir outputs_rotated_right --skip-existing
+python plot_probs.py --all --data-root data_rotated_right \
+  --probs-dir outputs_rotated_right --output-dir outputs_rotated_right/plots
+```
+
 ## Model Architecture
 
 1. **Backbone**: `timm` RegNetY (`regnety_064` → 2016-d features per frame)
