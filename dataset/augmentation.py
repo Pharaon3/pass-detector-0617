@@ -83,7 +83,7 @@ def rotate_zoom_crop_rgb(img: np.ndarray, angle_deg: float) -> np.ndarray:
         (w, h),
         flags=cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
-        borderValues=(0, 0, 0),
+        borderValue=(0, 0, 0),
     )
 
     a = math.radians(abs(angle_deg))
