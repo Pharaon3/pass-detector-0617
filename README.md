@@ -229,11 +229,13 @@ python plot_probs.py --all --data-root data_grayscale \
 
 ## Rotated ±5° inference experiment
 
-Rotate left/right, keep original resolution, infer and plot:
+Rotate left/right, zoom to remove black corners, keep original resolution, infer and plot:
 
 ```bash
-bash bulk_rotated_infer_plot.sh checkpoints/best.pt
+FORCE=1 bash bulk_rotated_infer_plot.sh checkpoints/best.pt
 ```
+
+`FORCE=1` rebuilds rotated videos (needed after fixing the rotation filter).
 
 Or step by step:
 

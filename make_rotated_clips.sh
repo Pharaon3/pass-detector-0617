@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Rotate all clips by ±5° and crop/scale back to original resolution.
+# Rotate all clips by ±N° and zoom/crop to remove black corners (keeps original WxH).
 #
 # Usage:
 #   bash make_rotated_clips.sh
-#   bash make_rotated_clips.sh data data_rotated_left data_rotated_right 5
+#   FORCE=1 bash make_rotated_clips.sh   # overwrite existing rotated clips
 
 set -euo pipefail
 
@@ -11,19 +11,42 @@ SRC="${1:-data}"
 DST_LEFT="${2:-data_rotated_left}"
 DST_RIGHT="${3:-data_rotated_right}"
 ANGLE="${4:-5}"
+FORCE="${FORCE:-0}"
+
+# Zoom factor after rotation so a center crop at WxH has no black wedges.
+# zoom = 1 / (cos(a) - sin(a) * min(w,h) / max(w,h))
+compute_zoom_dims() {
+  local W="$1" H="$2" DEG="$3"
+  python3 - "$W" "$H" "$DEG" <<'PY'
+import math, sys
+w, h, deg = map(float, sys.argv[1:4])
+a = math.radians(abs(deg))
+mn, mx = min(w, h), max(w, h)
+zoom = 1.0 / (math.cos(a) - math.sin(a) * mn / mx)
+sw = int(w * zoom)
+sh = int(h * zoom)
+# even dimensions for yuv420p
+sw += sw % 2
+sh += sh % 2
+print(f"{zoom:.6f} {sw} {sh}")
+PY
+}
 
 rotate_clip() {
   local src_video="$1"
   local dst_video="$2"
   local angle="$3"   # degrees: negative = left (CCW), positive = right (CW)
 
-  local W H
+  local W H ZOOM SW SH
   W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width  -of csv=p=0 "$src_video")
   H=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$src_video")
+  read -r ZOOM SW SH <<< "$(compute_zoom_dims "$W" "$H" "$angle")"
 
-  # rotate → scale up to cover → center-crop back to original WxH
+  # 1) rotate (black fill in original canvas)
+  # 2) zoom in so rotated content covers the frame
+  # 3) center-crop back to original resolution
   ffmpeg -y -loglevel error -i "$src_video" \
-    -vf "rotate=${angle}*PI/180:fillcolor=black,scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}" \
+    -vf "rotate=${angle}*PI/180:fillcolor=black,scale=${SW}:${SH},crop=${W}:${H}:(iw-${W})/2:(ih-${H})/2" \
     -c:v libx264 -pix_fmt yuv420p \
     "$dst_video"
 }
@@ -31,6 +54,7 @@ rotate_clip() {
 echo "Source : $SRC"
 echo "Left   : $DST_LEFT  (-${ANGLE} deg)"
 echo "Right  : $DST_RIGHT (+${ANGLE} deg)"
+[[ "$FORCE" == "1" ]] && echo "FORCE  : overwrite existing"
 
 for clip_dir in "$SRC"/clip_*; do
   [[ -d "$clip_dir" ]] || continue
@@ -42,18 +66,18 @@ for clip_dir in "$SRC"/clip_*; do
   left_video="$DST_LEFT/$clip/224p.mp4"
   right_video="$DST_RIGHT/$clip/224p.mp4"
 
-  if [[ ! -f "$left_video" ]]; then
+  if [[ ! -f "$left_video" || "$FORCE" == "1" ]]; then
     echo "Rotate left  (-${ANGLE}°): $clip"
     rotate_clip "$src_video" "$left_video" "-${ANGLE}"
   else
-    echo "Skip left  $clip (exists)"
+    echo "Skip left  $clip (exists, use FORCE=1 to rebuild)"
   fi
 
-  if [[ ! -f "$right_video" ]]; then
+  if [[ ! -f "$right_video" || "$FORCE" == "1" ]]; then
     echo "Rotate right (+${ANGLE}°): $clip"
     rotate_clip "$src_video" "$right_video" "${ANGLE}"
   else
-    echo "Skip right $clip (exists)"
+    echo "Skip right $clip (exists, use FORCE=1 to rebuild)"
   fi
 
   if [[ -f "$clip_dir/label.json" ]]; then
