@@ -13,19 +13,22 @@ DST_RIGHT="${3:-data_rotated_right}"
 ANGLE="${4:-5}"
 FORCE="${FORCE:-0}"
 
-# Zoom factor after rotation so a center crop at WxH has no black wedges.
-# zoom = 1 / (cos(a) - sin(a) * min(w,h) / max(w,h))
+# Zoom after rotation so a center crop at WxH has no black wedges.
+# Must satisfy BOTH width and height (use max of the two factors).
 compute_zoom_dims() {
   local W="$1" H="$2" DEG="$3"
   python3 - "$W" "$H" "$DEG" <<'PY'
 import math, sys
 w, h, deg = map(float, sys.argv[1:4])
 a = math.radians(abs(deg))
-mn, mx = min(w, h), max(w, h)
-zoom = 1.0 / (math.cos(a) - math.sin(a) * mn / mx)
-sw = int(w * zoom)
-sh = int(h * zoom)
-# even dimensions for yuv420p
+# Largest axis-aligned content rect inside WxH after rotate by a:
+#   w_in = w*cos(a) - h*sin(a),  h_in = h*cos(a) - w*sin(a)
+# Zoom so S*w_in >= w AND S*h_in >= h:
+zoom_w = 1.0 / (math.cos(a) - math.sin(a) * h / w)
+zoom_h = 1.0 / (math.cos(a) - math.sin(a) * w / h)
+zoom = max(zoom_w, zoom_h) * 1.02  # 2% safety for rounding
+sw = int(math.ceil(w * zoom))
+sh = int(math.ceil(h * zoom))
 sw += sw % 2
 sh += sh % 2
 print(f"{zoom:.6f} {sw} {sh}")
