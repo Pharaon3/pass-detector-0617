@@ -207,6 +207,26 @@ python find_matching_segment.py --query-clip clip_235 --start-sec 20 --end-sec 3
 python find_matching_segment.py --query-clip clip_235 --start-sec 20 --end-sec 30 --min-score 0.85 --exclude-self
 ```
 
+## Grayscale (no color) inference experiment
+
+Build grayscale copies, infer all, and plot (separate from color outputs):
+
+```bash
+bash bulk_grayscale_infer_plot.sh checkpoints/best.pt
+```
+
+Or step by step:
+
+```bash
+bash make_grayscale_clips.sh data data_grayscale
+
+python infer.py --checkpoint checkpoints/best.pt \
+  --video-dir data_grayscale --output-dir outputs_grayscale
+
+python plot_probs.py --all --data-root data_grayscale \
+  --probs-dir outputs_grayscale --output-dir outputs_grayscale/plots
+```
+
 ## Model Architecture
 
 1. **Backbone**: `timm` RegNetY (`regnety_064` → 2016-d features per frame)

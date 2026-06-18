@@ -33,6 +33,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--clip", type=str, default=None, help="Single clip id, e.g. clip_4")
     p.add_argument("--all", action="store_true", help="Plot every clip under data/")
     p.add_argument(
+        "--data-root",
+        type=str,
+        default=None,
+        help="Clip root for labels (default: config data.data_root)",
+    )
+    p.add_argument(
         "--probs-json",
         type=str,
         default=None,
@@ -198,12 +204,13 @@ def main() -> None:
 
     cfg = load_config(args.config)
     data_cfg = cfg["data"]
+    data_root = Path(args.data_root or data_cfg["data_root"])
     threshold = args.threshold if args.threshold is not None else cfg["inference"]["threshold"]
     probs_dir = Path(args.probs_dir)
     output_dir = ensure_dir(args.output_dir)
 
     clips = list_clips(
-        data_cfg["data_root"],
+        data_root,
         video_filename=data_cfg["video_filename"],
         label_filename=data_cfg["label_filename"],
         clip_prefix=data_cfg["clip_prefix"],

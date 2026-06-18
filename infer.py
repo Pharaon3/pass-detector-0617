@@ -39,6 +39,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip clips whose outputs/{clip_id}_frame_probs.json already exists",
     )
+    p.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Override config inference output_dir (e.g. outputs_grayscale)",
+    )
     return p.parse_args()
 
 
@@ -157,7 +163,7 @@ def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
     device = get_device()
-    output_dir = ensure_dir(cfg["inference"]["output_dir"])
+    output_dir = ensure_dir(args.output_dir or cfg["inference"]["output_dir"])
 
     model = load_model(Path(args.checkpoint), device)
     print(f"Inference on {device}")
