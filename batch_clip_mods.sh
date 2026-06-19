@@ -55,9 +55,12 @@ run_variant() {
   local data_root="$2"
   local out_dir="$3"
   local video_path="${data_root}/${CLIP}/224p.mp4"
+  local label_dest="${data_root}/${CLIP}/label.json"
 
   mkdir -p "${data_root}/${CLIP}" "$out_dir" "$PLOT_DIR"
-  cp "$LABEL" "${data_root}/${CLIP}/label.json"
+  if [[ "$label_dest" != "$LABEL" ]]; then
+    cp "$LABEL" "$label_dest"
+  fi
 
   echo "  Infer: $name"
   python infer.py --checkpoint "$CHECKPOINT" \
