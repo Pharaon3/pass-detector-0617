@@ -264,6 +264,15 @@ FORCE=1 bash bulk_rotated_infer_plot.sh checkpoints/best.pt
 
 `FORCE=1` rebuilds rotated videos (needed after fixing the rotation filter).
 
+### One clip, all modifications (infer + plot)
+
+```bash
+bash batch_clip_mods.sh clip_239 checkpoints/best.pt
+```
+
+Builds (if missing), infers, and plots: original, grayscale, rotated ±5°, hue ±15°, zoom 1.1×  
+→ `outputs/plots/clip_239_mods/*.png`
+
 Or step by step:
 
 ```bash
