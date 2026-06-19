@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 tracks_cache/
+tracks_cache_windows/
 checkpoints/yolo/
 checkpoints_tracks/
 runs/

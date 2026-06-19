@@ -9,7 +9,8 @@ data:
   num_frames: 750
 
 tracks:
-  cache_dir: "tracks_cache"
+  cache_dir: "tracks_cache"           # optional full-clip cache (--full-clip)
+  window_cache_dir: "tracks_cache_windows"  # 7s windows (default for train/infer)
   max_players: 22
   yolo_conf: 0.3
   yolo_imgsz: 640

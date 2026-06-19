@@ -1,4 +1,6 @@
-"""Inference: track features -> frame probs -> pass event JSON."""
+"""
+Inference: window-local track features -> frame probs -> pass event JSON.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ from detect_ball_players import load_yolo, resolve_model_path, resolve_video_pat
 from merge_windows import merge_window_predictions
 from models.track_model import TrackPassModel
 from nms import events_to_json, extract_events_from_probs, temporal_nms
-from tracks.extract import cache_path_for_clip, extract_and_cache_clip
+from tracks.extract import extract_and_cache_all_windows
 from utils import (
     ClipRecord,
     clip_id_from_video_path,
@@ -35,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--video", type=str, default=None)
     p.add_argument("--output-dir", type=str, default=None)
     p.add_argument("--skip-existing", action="store_true")
-    p.add_argument("--device", type=str, default=None, help="Inference device for YOLO extract")
+    p.add_argument("--device", type=str, default=None, help="Device for YOLO window track extraction")
     return p.parse_args()
 
 
@@ -71,23 +73,26 @@ def load_track_model(checkpoint_path: Path, device: torch.device) -> TrackPassMo
     return model
 
 
-def ensure_track_cache(
+def ensure_window_caches(
     clip: ClipRecord,
-    cache_dir: Path,
+    window_cache_dir: Path,
     cfg: dict,
     yolo_device: str | None,
-) -> Path:
-    cache_path = cache_path_for_clip(cache_dir, clip.clip_id)
-    if cache_path.is_file():
-        return cache_path
-
+) -> None:
     track_cfg = cfg["tracks"]
+    sw_cfg = cfg["sliding_window"]
+    data_cfg = cfg["data"]
     yolo_cfg = cfg.get("yolo", {})
+
     model = load_yolo(resolve_model_path(yolo_cfg.get("model")), yolo_device)
-    return extract_and_cache_clip(
+    extract_and_cache_all_windows(
         clip,
-        cache_dir,
+        window_cache_dir,
         model,
+        window_frames=sw_cfg["window_frames"],
+        stride_frames=sw_cfg["stride_frames"],
+        num_frames=data_cfg.get("num_frames"),
+        force=False,
         conf=track_cfg.get("yolo_conf", 0.3),
         imgsz=track_cfg.get("yolo_imgsz", 640),
         device=yolo_device,
@@ -100,7 +105,7 @@ def ensure_track_cache(
 @torch.no_grad()
 def infer_clip_tracks(
     model: TrackPassModel,
-    cache_path: Path,
+    clip: ClipRecord,
     cfg: dict,
     device: torch.device,
     num_frames: int | None = None,
@@ -111,7 +116,9 @@ def infer_clip_tracks(
     track_cfg = cfg["tracks"]
 
     ds = TrackPassVideoDataset(
-        cache_path=cache_path,
+        video_path=clip.video_path,
+        window_cache_dir=track_cfg["window_cache_dir"],
+        clip_id=clip.clip_id,
         window_frames=sw_cfg["window_frames"],
         stride_frames=sw_cfg["stride_frames"],
         max_players=track_cfg["max_players"],
@@ -163,10 +170,10 @@ def main() -> None:
     cfg = load_config(args.config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     output_dir = ensure_dir(args.output_dir or cfg["inference"]["output_dir"])
-    cache_dir = ensure_dir(cfg["tracks"]["cache_dir"])
+    window_cache_dir = ensure_dir(cfg["tracks"]["window_cache_dir"])
 
     model = load_track_model(Path(args.checkpoint), device)
-    print(f"Track model inference on {device}")
+    print(f"Track model inference on {device} (7s window-local tracks)")
 
     if args.video:
         video_path = resolve_video_path(args.video)
@@ -197,10 +204,10 @@ def main() -> None:
         if args.skip_existing and out_probs.exists():
             continue
 
-        cache_path = ensure_track_cache(clip, cache_dir, cfg, args.device)
+        ensure_window_caches(clip, window_cache_dir, cfg, args.device)
         result = infer_clip_tracks(
             model,
-            cache_path,
+            clip,
             cfg,
             device,
             num_frames=clip.num_frames,

@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from infer_tracks import ensure_track_cache, infer_clip_tracks, load_track_model
+from infer_tracks import ensure_window_caches, infer_clip_tracks, load_track_model
 from plot_probs import load_probs_from_json, plot_one_clip, probs_json_path
 from utils import ClipRecord, ensure_dir, get_clip, list_clips, load_config
 
@@ -50,7 +50,7 @@ def parse_args() -> argparse.Namespace:
 def resolve_track_probs(
     clip: ClipRecord,
     cfg: dict,
-    cache_dir: Path,
+    window_cache_dir: Path,
     probs_dir: Path,
     probs_json: Path | None,
     model,
@@ -68,8 +68,8 @@ def resolve_track_probs(
     if not infer_missing or model is None:
         return None
 
-    cache_path = ensure_track_cache(clip, cache_dir, cfg, yolo_device)
-    result = infer_clip_tracks(model, cache_path, cfg, device, num_frames=clip.num_frames)
+    ensure_window_caches(clip, window_cache_dir, cfg, yolo_device)
+    result = infer_clip_tracks(model, clip, cfg, device, num_frames=clip.num_frames)
     return np.asarray(result["frame_probs"], dtype=np.float32)
 
 
@@ -84,7 +84,7 @@ def main() -> None:
     threshold = args.threshold if args.threshold is not None else cfg["inference"]["threshold"]
     probs_dir = Path(args.probs_dir)
     output_dir = ensure_dir(args.output_dir)
-    cache_dir = Path(cfg["tracks"]["cache_dir"])
+    window_cache_dir = ensure_dir(cfg["tracks"]["window_cache_dir"])
 
     clips = list_clips(
         data_root,
@@ -118,7 +118,7 @@ def main() -> None:
             frame_probs = resolve_track_probs(
                 clip,
                 cfg,
-                cache_dir,
+                window_cache_dir,
                 probs_dir,
                 None,
                 model,
@@ -164,7 +164,7 @@ def main() -> None:
     frame_probs = resolve_track_probs(
         clip,
         cfg,
-        cache_dir,
+        window_cache_dir,
         probs_dir,
         probs_json,
         model,

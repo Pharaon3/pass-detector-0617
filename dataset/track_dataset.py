@@ -1,4 +1,6 @@
-"""Dataset: sliding windows over precomputed track feature matrices."""
+"""
+Dataset: one training sample = one 7s video window with window-local track features.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +12,7 @@ import torch
 from torch.utils.data import Dataset
 
 from dataset.sliding_window import WindowSpec, generate_sliding_windows
-from tracks.extract import cache_path_for_clip, load_track_cache
+from tracks.extract import load_track_cache, window_cache_path
 from tracks.features import build_clip_feature_matrix
 from utils import ClipRecord, build_frame_labels, list_clips, pass_frames_from_annotation
 
@@ -19,10 +21,10 @@ class TrackPassDataset(Dataset):
     def __init__(
         self,
         data_root: str | Path,
-        cache_dir: str | Path,
+        window_cache_dir: str | Path,
         video_filename: str = "224p.mp4",
         label_filename: str = "label.json",
-        clip_prefix: str = "clip_",
+        clip_prefix: str | None = "clip_",
         window_frames: int = 175,
         stride_frames: int = 25,
         num_frames: int | None = 750,
@@ -31,7 +33,8 @@ class TrackPassDataset(Dataset):
         max_players: int = 22,
         clip_ids: list[str] | None = None,
     ) -> None:
-        self.cache_dir = Path(cache_dir)
+        self.data_root = Path(data_root)
+        self.window_cache_dir = Path(window_cache_dir)
         self.window_frames = window_frames
         self.stride_frames = stride_frames
         self.default_num_frames = num_frames
@@ -40,7 +43,7 @@ class TrackPassDataset(Dataset):
         self.max_players = max_players
 
         clips = list_clips(
-            data_root,
+            self.data_root,
             video_filename=video_filename,
             label_filename=label_filename,
             clip_prefix=clip_prefix,
@@ -49,33 +52,23 @@ class TrackPassDataset(Dataset):
             wanted = set(clip_ids)
             clips = [c for c in clips if c.clip_id in wanted]
 
-        self.samples: list[tuple[str, WindowSpec, np.ndarray, list[int]]] = []
-        self._feature_cache: dict[str, np.ndarray] = {}
+        self.clip_by_id = {c.clip_id: c for c in clips}
+        self.samples: list[tuple[ClipRecord, WindowSpec, np.ndarray, list[int]]] = []
         self._build_index(clips)
 
-    def _get_clip_features(self, clip_id: str) -> np.ndarray:
-        if clip_id in self._feature_cache:
-            return self._feature_cache[clip_id]
-
-        cache_path = cache_path_for_clip(self.cache_dir, clip_id)
-        if not cache_path.is_file():
+    def _load_window_features(self, clip_id: str, start_frame: int, length: int) -> np.ndarray:
+        path = window_cache_path(self.window_cache_dir, clip_id, start_frame)
+        if not path.is_file():
             raise FileNotFoundError(
-                f"Track cache missing for {clip_id}: {cache_path}\n"
-                "Run: python extract_tracks.py"
+                f"Window track cache missing: {path}\n"
+                "Run: python extract_tracks.py --windows"
             )
-
-        cache = load_track_cache(cache_path)
-        clip_frames = int(cache["num_frames"])
-        if self.default_num_frames is not None:
-            clip_frames = min(clip_frames, self.default_num_frames)
-
-        feats = build_clip_feature_matrix(
+        cache = load_track_cache(path)
+        return build_clip_feature_matrix(
             cache,
             max_players=self.max_players,
-            num_frames=clip_frames,
+            num_frames=length,
         )
-        self._feature_cache[clip_id] = feats
-        return feats
 
     def _build_index(self, clips: list[ClipRecord]) -> None:
         for clip in clips:
@@ -100,15 +93,14 @@ class TrackPassDataset(Dataset):
 
             for w in windows:
                 window_labels = full_labels[w.start_frame : w.end_frame]
-                self.samples.append((clip.clip_id, w, window_labels.copy(), pass_frames))
+                self.samples.append((clip, w, window_labels.copy(), pass_frames))
 
     def __len__(self) -> int:
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
-        clip_id, window, window_labels, pass_frames = self.samples[idx]
-        full_feats = self._get_clip_features(clip_id)
-        track_feats = full_feats[window.start_frame : window.end_frame]
+        clip, window, window_labels, pass_frames = self.samples[idx]
+        track_feats = self._load_window_features(clip.clip_id, window.start_frame, window.length)
 
         labels = torch.from_numpy(window_labels).float()
         peak_times = []
@@ -127,42 +119,55 @@ class TrackPassDataset(Dataset):
             "labels": labels,
             "peak_times": peak_time_tensor,
             "start_frame": window.start_frame,
-            "video_id": clip_id,
+            "video_id": clip.clip_id,
         }
 
 
 class TrackPassVideoDataset(Dataset):
-    """Inference: sliding windows from one clip's track cache."""
+    """Inference: one item per 7s window with window-local track features."""
 
     def __init__(
         self,
-        cache_path: str | Path,
+        video_path: str | Path,
+        window_cache_dir: str | Path,
+        clip_id: str,
         window_frames: int = 175,
         stride_frames: int = 25,
         max_players: int = 22,
-        num_frames: int | None = None,
+        num_frames: int | None = 750,
     ) -> None:
-        self.cache_path = Path(cache_path)
-        self.cache = load_track_cache(self.cache_path)
-        self.clip_id = self.cache["clip_id"]
+        self.video_path = Path(video_path)
+        self.window_cache_dir = Path(window_cache_dir)
+        self.clip_id = clip_id
         self.window_frames = window_frames
         self.stride_frames = stride_frames
         self.max_players = max_players
 
-        clip_frames = int(self.cache["num_frames"])
+        from utils import get_video_frame_count
+
+        clip_frames = get_video_frame_count(self.video_path)
         if num_frames is not None:
             clip_frames = min(clip_frames, num_frames)
-
         self.num_frames = clip_frames
-        self.full_feats = build_clip_feature_matrix(
-            self.cache,
-            max_players=max_players,
-            num_frames=clip_frames,
-        )
+
         self.windows = generate_sliding_windows(
             clip_frames,
             window_frames=window_frames,
             stride_frames=stride_frames,
+        )
+
+    def _load_window_features(self, start_frame: int, length: int) -> np.ndarray:
+        path = window_cache_path(self.window_cache_dir, self.clip_id, start_frame)
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"Window track cache missing: {path}\n"
+                "Run: python extract_tracks.py --windows --video <clip>"
+            )
+        cache = load_track_cache(path)
+        return build_clip_feature_matrix(
+            cache,
+            max_players=self.max_players,
+            num_frames=length,
         )
 
     def __len__(self) -> int:
@@ -170,7 +175,7 @@ class TrackPassVideoDataset(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         window = self.windows[idx]
-        track_feats = self.full_feats[window.start_frame : window.end_frame]
+        track_feats = self._load_window_features(window.start_frame, window.length)
         return {
             "tracks": torch.from_numpy(track_feats).float(),
             "start_frame": window.start_frame,

@@ -19,7 +19,7 @@ bash make_shifted_clips.sh data "$DATA_DST"
 if [[ "$MODEL" == "tracks" ]]; then
   echo ""
   echo "=== Step 2/3: Track inference (shifted) ==="
-  python extract_tracks.py --data-root "$DATA_DST" --force
+  python extract_tracks.py --data-root "$DATA_DST" --windows --force
   python infer_tracks.py \
     --checkpoint "$CHECKPOINT" \
     --output-dir "$OUT_DIR" \

@@ -169,7 +169,7 @@ def main() -> None:
 
     ds_kwargs = dict(
         data_root=data_cfg["data_root"],
-        cache_dir=track_cfg["cache_dir"],
+        window_cache_dir=track_cfg["window_cache_dir"],
         window_frames=sw_cfg["window_frames"],
         stride_frames=sw_cfg["stride_frames"],
         num_frames=data_cfg.get("num_frames"),
@@ -182,7 +182,15 @@ def main() -> None:
     train_ds = TrackPassDataset(clip_ids=train_ids, **ds_kwargs)
     val_ds = TrackPassDataset(clip_ids=val_ids, **ds_kwargs)
     if len(train_ds) == 0:
-        raise RuntimeError("No training windows. Run extract_tracks.py first.")
+        raise RuntimeError(
+            "No training windows. Run: python extract_tracks.py --windows"
+        )
+
+    wf = sw_cfg["window_frames"]
+    print(
+        f"Track training: {len(train_ds)} train windows, {len(val_ds)} val windows "
+        f"({wf} frames = {wf / data_cfg['fps']:.0f}s video per sample)"
+    )
 
     use_cuda = device.type == "cuda"
     use_amp = train_cfg.get("amp", True) and use_cuda
