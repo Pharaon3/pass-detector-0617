@@ -1,0 +1,32 @@
+YOLO detection label format (one .txt per image, same base name as the image)
+================================================================================
+
+File pairing:
+  images/train/clip_239_f00042.jpg  <->  labels/train/clip_239_f00042.txt
+  images/val/clip_116_f00100.jpg    <->  labels/val/clip_116_f00100.txt
+
+Each line in the .txt file is one object:
+  class_id  x_center  y_center  width  height
+
+All four coordinates are normalized to [0, 1] relative to image width/height.
+
+Class IDs (keep this order when fine-tuning from EasyChamp weights):
+  0 = player
+  1 = ball
+  2 = referee
+  3 = goalkeeper
+
+Example (398x224 image):
+  - Player box: x1=180, y1=60, x2=240, y2=110
+    x_center = (180 + 240) / 2 / 398 = 0.5289
+    y_center = (60 + 110) / 2 / 224  = 0.3795
+    width    = (240 - 180) / 398     = 0.1508
+    height   = (110 - 60) / 224      = 0.2232
+    line: 0 0.5289 0.3795 0.1508 0.2232
+
+  - Ball box: x1=125, y1=98, x2=135, y2=108
+    line: 1 0.3279 0.4554 0.0251 0.0446
+
+Empty images (no objects): use an empty .txt file or omit the label file.
+
+See detection_data/examples/ for ready-to-copy sample label files.

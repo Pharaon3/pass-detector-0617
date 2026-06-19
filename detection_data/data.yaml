@@ -1,0 +1,13 @@
+# Ultralytics dataset config for soccer detection fine-tuning.
+# Paths are relative to this file's directory unless absolute.
+
+path: .
+train: images/train
+val: images/val
+
+# Must match EasyChamp class order if starting from player_detection_best.pt
+names:
+  0: player
+  1: ball
+  2: referee
+  3: goalkeeper
