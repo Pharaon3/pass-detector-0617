@@ -4,7 +4,7 @@ data:
   data_root: "data"
   video_filename: "224p.mp4"
   label_filename: "label.json"
-  clip_prefix: "clip_"
+  clip_prefix: null   # null or "" = all folders with 224p.mp4; "clip_" = clip_* only
   fps: 25
   num_frames: 750
 

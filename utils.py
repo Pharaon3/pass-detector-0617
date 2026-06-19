@@ -66,7 +66,7 @@ def list_clips(
     data_root: str | Path,
     video_filename: str = "224p.mp4",
     label_filename: str = "label.json",
-    clip_prefix: str = "clip_",
+    clip_prefix: str | None = "clip_",
 ) -> list[ClipRecord]:
     """
     Discover clip folders under data_root.
@@ -74,6 +74,8 @@ def list_clips(
     Expected layout:
       data/clip_4/224p.mp4
       data/exam_1/224p.mp4
+
+    Set clip_prefix to None or "" to include every subfolder that contains video_filename.
     """
     data_root = Path(data_root)
     if not data_root.exists():

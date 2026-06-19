@@ -19,6 +19,18 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--video", type=str, default=None, help="Single clip folder or video path")
     p.add_argument("--force", action="store_true", help="Re-extract even if cache exists")
     p.add_argument("--device", type=str, default=None)
+    p.add_argument(
+        "--all-folders",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include every data subfolder with 224p.mp4 (default: true). Use --no-all-folders for clip_* only.",
+    )
+    p.add_argument(
+        "--clip-prefix",
+        type=str,
+        default=None,
+        help="Override folder name prefix filter (e.g. clip_). Ignored when --all-folders.",
+    )
     return p.parse_args()
 
 
@@ -61,19 +73,28 @@ def main() -> None:
         return
 
     data_root = args.data_root or data_cfg["data_root"]
+    if args.all_folders:
+        clip_prefix: str | None = ""
+    elif args.clip_prefix is not None:
+        clip_prefix = args.clip_prefix
+    else:
+        clip_prefix = data_cfg.get("clip_prefix", "clip_")
+
     clips = list_clips(
         data_root,
         video_filename=data_cfg["video_filename"],
         label_filename=data_cfg["label_filename"],
-        clip_prefix=data_cfg["clip_prefix"],
+        clip_prefix=clip_prefix,
     )
     if not clips:
-        raise RuntimeError(f"No clips under {data_root}")
+        scope = "all folders" if not clip_prefix else f"folders matching '{clip_prefix}*'"
+        raise RuntimeError(f"No clips under {data_root} ({scope})")
 
     for clip in tqdm(clips, desc="Extract tracks"):
         extract_and_cache_clip(clip, cache_dir, model, force=args.force, **extract_kwargs)
 
     print(f"Track cache written to {cache_dir} ({len(clips)} clips)")
+    print(f"Folders: {[c.clip_id for c in clips]}")
 
 
 if __name__ == "__main__":
