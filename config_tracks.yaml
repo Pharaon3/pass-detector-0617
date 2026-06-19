@@ -1,0 +1,54 @@
+# Track-based pass event detection
+
+data:
+  data_root: "data"
+  video_filename: "224p.mp4"
+  label_filename: "label.json"
+  clip_prefix: "clip_"
+  fps: 25
+  num_frames: 750
+
+tracks:
+  cache_dir: "tracks_cache"
+  max_players: 22
+  yolo_conf: 0.3
+  yolo_imgsz: 640
+  median_kernel: 5
+  max_speed: 60.0        # px/frame peak removal for players
+  ball_max_speed: 80.0
+
+sliding_window:
+  window_frames: 175
+  stride_frames: 25
+
+labeling:
+  pass_radius_sec: 0.5
+
+model:
+  d_model: 256
+  n_heads: 4
+  n_layers: 4
+  dropout: 0.1
+
+training:
+  batch_size: 16
+  num_epochs: 40
+  lr: 2.0e-4
+  weight_decay: 1.0e-4
+  peak_loss_weight: 0.2
+  grad_accum_steps: 1
+  amp: true
+  num_workers: 0
+  checkpoint_dir: "checkpoints_tracks"
+  log_interval: 10
+  val_clip_ratio: 0.2
+
+inference:
+  batch_size: 8
+  threshold: 0.5
+  min_segment_frames: 3
+  nms_window_sec: 1.0
+  output_dir: "outputs_tracks"
+
+yolo:
+  model: null   # null = EasyChamp default from detect_ball_players.py
