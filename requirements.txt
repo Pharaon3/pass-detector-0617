@@ -8,3 +8,6 @@ scikit-learn>=1.3.0
 PyYAML>=6.0
 tqdm>=4.65.0
 matplotlib>=3.7.0
+
+# Optional: ball/player detection (detect_ball_players.py)
+ultralytics>=8.0.0
