@@ -50,6 +50,18 @@ def get_video_frame_count(video_path: str | Path) -> int:
     return count
 
 
+def clip_id_from_video_path(
+    video_path: str | Path,
+    label_filename: str = "label.json",
+) -> str:
+    """Use folder name for data/{id}/224p.mp4 layout; else video stem."""
+    video_path = Path(video_path)
+    parent = video_path.parent
+    if parent.name and parent.name not in (".", ""):
+        return parent.name
+    return video_path.stem
+
+
 def list_clips(
     data_root: str | Path,
     video_filename: str = "224p.mp4",
@@ -61,7 +73,7 @@ def list_clips(
 
     Expected layout:
       data/clip_4/224p.mp4
-      data/clip_4/label.json
+      data/exam_1/224p.mp4
     """
     data_root = Path(data_root)
     if not data_root.exists():
@@ -69,12 +81,14 @@ def list_clips(
 
     clips: list[ClipRecord] = []
     for clip_dir in sorted(data_root.iterdir()):
-        if not clip_dir.is_dir() or not clip_dir.name.startswith(clip_prefix):
+        if not clip_dir.is_dir():
+            continue
+        if clip_prefix and not clip_dir.name.startswith(clip_prefix):
             continue
 
         video_path = clip_dir / video_filename
         label_path = clip_dir / label_filename
-        if not video_path.exists() or not label_path.exists():
+        if not video_path.exists():
             continue
 
         num_frames = get_video_frame_count(video_path)
@@ -88,6 +102,27 @@ def list_clips(
             )
         )
     return clips
+
+
+def get_clip(
+    data_root: str | Path,
+    clip_id: str,
+    video_filename: str = "224p.mp4",
+    label_filename: str = "label.json",
+) -> ClipRecord | None:
+    """Find one clip folder by id (any name, ignores clip_prefix filter)."""
+    data_root = Path(data_root)
+    clip_dir = data_root / clip_id
+    video_path = clip_dir / video_filename
+    if not video_path.exists():
+        return None
+    return ClipRecord(
+        clip_id=clip_id,
+        clip_dir=clip_dir,
+        video_path=video_path,
+        label_path=clip_dir / label_filename,
+        num_frames=get_video_frame_count(video_path),
+    )
 
 
 def ms_to_frame(position_ms: int | float, fps: int = 25) -> int:

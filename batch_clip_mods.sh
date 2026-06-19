@@ -19,8 +19,9 @@ if [[ ! -f "$SRC" ]]; then
   exit 1
 fi
 if [[ ! -f "$LABEL" ]]; then
-  echo "Missing label: $LABEL"
-  exit 1
+  echo "Warning: no label.json — plots will have no GT lines"
+  mkdir -p "data/${CLIP}"
+  echo '{"observation":[],"anticipation":[]}' > "$LABEL"
 fi
 
 W=$(ffprobe -v error -select_streams v:0 -show_entries stream=width  -of csv=p=0 "$SRC")

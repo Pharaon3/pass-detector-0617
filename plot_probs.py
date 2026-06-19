@@ -19,6 +19,7 @@ from utils import (
     build_frame_labels,
     ensure_dir,
     frame_to_sec,
+    get_clip,
     get_device,
     list_clips,
     load_config,
@@ -182,7 +183,9 @@ def plot_one_clip(
     show: bool = False,
 ) -> Path:
     fps = cfg["data"]["fps"]
-    pass_frames = pass_frames_from_annotation(clip.label_path, fps, clip.num_frames)
+    pass_frames: list[int] = []
+    if clip.label_path.exists():
+        pass_frames = pass_frames_from_annotation(clip.label_path, fps, clip.num_frames)
     if output_path is None:
         output_path = output_dir / f"{clip.clip_id}_pass_probs.png"
     return plot_clip(
@@ -251,9 +254,14 @@ def main() -> None:
             print(f"Skipped {len(skipped)} clips")
         return
 
-    clip = next((c for c in clips if c.clip_id == args.clip), None)
+    clip = get_clip(
+        data_root,
+        args.clip,
+        video_filename=data_cfg["video_filename"],
+        label_filename=data_cfg["label_filename"],
+    )
     if clip is None:
-        raise RuntimeError(f"Clip not found: {args.clip}")
+        raise RuntimeError(f"Clip not found: {args.clip} under {data_root}")
 
     pass_frames = pass_frames_from_annotation(clip.label_path, data_cfg["fps"], clip.num_frames)
     print(f"{clip.clip_id}: {len(pass_frames)} GT pass frames at {pass_frames}")

@@ -15,7 +15,7 @@ from dataset.dataset import SoccerPassVideoDataset, collate_fn
 from merge_windows import merge_window_predictions
 from models.model import PassDetectionModel
 from nms import events_to_json, extract_events_from_probs, temporal_nms
-from utils import ClipRecord, ensure_dir, get_device, get_video_frame_count, list_clips, load_config, save_json
+from utils import ClipRecord, ensure_dir, get_device, get_video_frame_count, list_clips, load_config, save_json, clip_id_from_video_path
 
 
 def autocast_context(enabled: bool, device: torch.device):
@@ -68,10 +68,7 @@ def infer_video(
             num_frames = min(num_frames, data_cfg["num_frames"])
 
     if video_id is None:
-        if video_path.parent.name.startswith(data_cfg.get("clip_prefix", "clip_")):
-            video_id = video_path.parent.name
-        else:
-            video_id = video_path.stem
+        video_id = clip_id_from_video_path(video_path, data_cfg.get("label_filename", "label.json"))
 
     ds = SoccerPassVideoDataset(
         video_path=video_path,
@@ -170,9 +167,10 @@ def main() -> None:
 
     if args.video:
         video_path = Path(args.video)
+        cid = clip_id_from_video_path(video_path, cfg["data"]["label_filename"])
         clips = [
             ClipRecord(
-                clip_id=video_path.parent.name if video_path.parent.name.startswith("clip_") else video_path.stem,
+                clip_id=cid,
                 clip_dir=video_path.parent,
                 video_path=video_path,
                 label_path=video_path.parent / cfg["data"]["label_filename"],
