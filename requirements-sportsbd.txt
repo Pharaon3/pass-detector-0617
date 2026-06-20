@@ -1,0 +1,3 @@
+# Optional: SportSBD shot boundary detection (detect_shots_sportsbd.py)
+# Recommend a separate venv — sportsbd pins numpy==1.26.4
+sportsbd>=0.1.2
